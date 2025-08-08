@@ -1,0 +1,116 @@
+{
+  "domain": "anime",
+  "A_pop": "進撃の巨人 (Attack on Titan)",
+  "B_hidden": "甲鉄城のカバネリ (Kabaneri of the Iron Fortress)",
+  "q0": "Which Japanese anime depicts humans struggling to survive inside enclosed strongholds, with the narrative following an elite squad repeatedly clashing with humanoid abominations under extreme pressure, and cyclically showing the loop of ‘hold the fort — pay the price — keep moving’?",
+  "allowed_slots": [
+    {
+      "id": "mobility_platform",
+      "desc": "Is the primary mobility/transport platform constrained to fixed routes (e.g., an armored conveyance that runs continuously along predefined corridors)?"
+    },
+    {
+      "id": "weakpoint_anatomy",
+      "desc": "Is the target’s vital spot covered by a high-hardness shell that must be breached before striking the core?"
+    },
+    {
+      "id": "organization",
+      "desc": "Is there a strictly partitioned defense system (recruitment/quarantine/logistics/craftsmen)?"
+    },
+    {
+      "id": "tone_structure",
+      "desc": "Is the rhythm/structure ‘strong episodic arcs + ongoing long-term foreshadowing’?"
+    },
+    {
+      "id": "settlement_layout",
+      "desc": "Are the strongholds connected by segmented passes/gates?"
+    },
+    {
+      "id": "weapon_doctrine",
+      "desc": "Are weapons oriented more toward ranged suppression or close-quarters armor-breaking?"
+    },
+    {
+      "id": "supply_rhythm",
+      "desc": "Are resupply/maintenance primarily on fixed time windows and coupled with an alert system?"
+    }
+  ],
+  "packs": [
+    {
+      "slot": "mobility_platform",
+      "items": [
+        "Residents and the front line rely on an armored mobile stronghold that moves between settlements along fixed corridors; defense and resupply are organized around its convoy composition.",
+        "Movement windows trigger on-the-hour alarms and formation reshuffles to ensure safe passage through narrow sections.",
+        "Inside the compartments are sealed work areas where crew complete maintenance and loading in enclosed spaces.",
+        "Waypoints follow a ‘brief stop — quick dispatch’ rule to avoid outside crowding."
+      ]
+    },
+    {
+      "slot": "weakpoint_anatomy",
+      "items": [
+        "The target’s vital area is encased in a dense outer shell; one must use high heat or piercing to breach it within a very short window, then deliver an effective strike to the core tissue.",
+        "Close-quarters combat emphasizes ‘create a short window — concentrate disposal — disengage immediately’.",
+        "Flare and debris can cause momentary visual occlusion at close range; hand signals and pre-plans are used to maintain coordination.",
+        "After battle, a secondary confirmation and cleanup of remaining tissue is performed to prevent misjudgment."
+      ]
+    },
+    {
+      "slot": "organization",
+      "items": [
+        "Recruitment and quarantine procedures are written up as separate chapters, with a documentary record-keeping tone.",
+        "Accompanying craftsmen handle equipment repair and on-site modifications.",
+        "Logistics execute short ‘fill what’s missing’ lists at resupply points.",
+        "Casualty evacuation follows fixed routes to avoid congestion."
+      ]
+    },
+    {
+      "slot": "tone_structure",
+      "items": [
+        "Episodic stories often follow a three-step ‘call for help — countermeasure — consequence’ structure.",
+        "Endings retain foreshadowing and close with wide shots.",
+        "Sacrifice is recorded coolly rather than melodramatically.",
+        "Ensemble viewpoints converge to debrief after key battles."
+      ]
+    },
+    {
+      "slot": "settlement_layout",
+      "items": [
+        "Strongholds are linked by segmented checkpoints and gates.",
+        "Outer perimeters use fences and temporary barricades (chevaux-de-frise) for rapid fortification.",
+        "A pass system runs in parallel with guard rotations.",
+        "Night roll call and patrol logs are routine."
+      ]
+    },
+    {
+      "slot": "weapon_doctrine",
+      "items": [
+        "Mid/close-range suppression and close-in armor-breaking are switched depending on context.",
+        "Some weapons require loading and cooldown rhythms.",
+        "Tactics prioritize short-range coordination and locking the window of opportunity.",
+        "Friendly-fire avoidance is written into the rules of engagement."
+      ]
+    },
+    {
+      "slot": "supply_rhythm",
+      "items": [
+        "Maintenance and resupply are tied to fixed shifts.",
+        "Inventory is managed by ‘days of turnover’ rather than long-term stockpiling.",
+        "Alert levels determine personnel flow priorities.",
+        "Forms are archived by phase for traceability."
+      ]
+    }
+  ],
+  "info_slots": [
+    "mobility_platform",
+    "weakpoint_anatomy"
+  ],
+  "info_items": [
+    "Residents and the front line rely on an armored mobile stronghold that moves between settlements along fixed corridors; defense and resupply are organized around its convoy composition.",
+    "The target’s vital area is encased in a dense outer shell; one must use high heat or piercing to breach it within a very short window, then deliver an effective strike to the core tissue."
+  ],
+  "noise_slots": [
+    "organization",
+    "tone_structure",
+    "settlement_layout",
+    "weapon_doctrine",
+    "supply_rhythm"
+  ]
+}
