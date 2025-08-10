@@ -214,7 +214,7 @@ class AsyncLLM:
         )
         
         ret = response.choices[0].message.content
-        logger.info(f"LLM Response: {ret}")
+        # logger.info(f"LLM Response: {ret}")
         
         # You can optionally print token usage information
         # print(f"Token usage: {input_tokens} input + {output_tokens} output = {input_tokens + output_tokens} total")
