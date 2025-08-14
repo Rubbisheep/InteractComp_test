@@ -207,4 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 config/config2.yaml
+config/search_config.yaml
 workspace/
+logs/
