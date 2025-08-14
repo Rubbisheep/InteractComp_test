@@ -3,7 +3,7 @@
 """
 @File    :   run_baseline.py
 @Time    :   2025/08/11
-@Author  :   Deng Mingyi
+@Author  :   Deng Mingyi1
 """
 
 import asyncio
@@ -32,7 +32,7 @@ async def main():
         prompt=prompt,
         mode="EASY",  # HARD or EASY
         max_turns=5,
-        search_engine_type="google",
+        search_engine_type="wikipedia",
         interactive=False
     )
 

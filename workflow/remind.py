@@ -168,10 +168,10 @@ class RemindWorkflow(Workflow):
 
             logger.info(f"📄 Search Results ({len(search_results)} found):")
             for i, result in enumerate(search_results[:3], 1):
-                title = result.get("title", "No title")[:80]
-                snippet = result.get("snippet", "No snippet")[:120]
+                title = result.get("title", "No title")
+                snippet = result.get("snippet", "No snippet")
                 print(f"{i}. {title}")
-                print(f"{snippet}...")
+                print(f"{snippet[:120]}...")
             print(f"Search completed: {len(search_results)} results")
             return turn_record
         

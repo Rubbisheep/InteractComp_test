@@ -29,6 +29,7 @@ class SearchEngine(ABC):
             return config
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
+            raise FileNotFoundError(f"Search engine config file not found: {config_path}") from e
     
     @abstractmethod
     async def search(self, query: str) -> List[Dict[str, Any]]:
@@ -118,7 +119,7 @@ class GoogleSearchEngine(SearchEngine):
         
         try:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
                 async with session.get(self.endpoint, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -135,15 +136,14 @@ class GoogleSearchEngine(SearchEngine):
             raise Exception(f"Google search failed: {e}")
     
     def _format_google_results(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        items = data["items"] 
+        items = data.get("items", [])
         results = []
         
         for item in items:
             results.append({
-                "title": item["title"],
-                "snippet": item["snippet"],
-                "source": item["link"],
-                "relevance": 0.9
+                "title": item.get("title", "Untitled"),
+                "snippet": item.get("snippet", "No description"),
+                "source": item.get("link", "No link"),
             })
         
         logger.info(f"Google search returned {len(results)} results")
@@ -169,11 +169,11 @@ class WikipediaSearchEngine(SearchEngine):
         }
         
         timeout = aiohttp.ClientTimeout(total=self.timeout)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
 
             async with session.get(self.search_api, params=search_params) as response:
                 data = await response.json()
-                search_results = data["query"]["search"] 
+                search_results = data.get("query", {}).get("search", [])
                 
                 if not search_results:
                     return []
@@ -182,13 +182,12 @@ class WikipediaSearchEngine(SearchEngine):
                 return await self._get_page_extracts(session, page_titles, query)
     
     async def _get_page_extracts(self, session: aiohttp.ClientSession, titles: List[str], query: str) -> List[Dict[str, Any]]:
-        """获取页面摘要"""
         extract_params = {
             "action": "query",
             "prop": "extracts|info",
             "titles": "|".join(titles),
-            "exintro": True,
-            "explaintext": True,
+            "exintro": "True",
+            "explaintext": "True",
             "exchars": 300,
             "inprop": "url",
             "format": "json"
@@ -196,7 +195,7 @@ class WikipediaSearchEngine(SearchEngine):
         
         async with session.get(self.search_api, params=extract_params) as response:
             data = await response.json()
-            pages = data["query"]["pages"]  
+            pages = data.get("query", {}).get("pages", {})
             
             results = []
             for page_id, page_data in pages.items():
@@ -204,9 +203,9 @@ class WikipediaSearchEngine(SearchEngine):
                     continue
                 
                 results.append({
-                    "title": page_data["title"],
-                    "snippet": page_data["extract"][:300],
-                    "source": page_data["fullurl"],
+                    "title": page_data.get("title", "Untitled"),
+                    "snippet": page_data.get("extract", "No description")[:300],
+                    "source": page_data.get("fullurl", "Unknown source"),
                     "relevance": 0.8,
                     "search_query": query
                 })
@@ -221,14 +220,14 @@ def create_search_engine(
     llm_config=None
 ) -> SearchEngine:
     
+    if engine_type == "llm_knowledge":
+        return LLMKnowledgeSearchEngine(llm_config=llm_config)
+    
     config = SearchEngine.load_config(config_path)
     
     logger.info(f"Creating search engine: {engine_type}")
     
-    if engine_type == "llm_knowledge":
-        return LLMKnowledgeSearchEngine(llm_config=llm_config)
-    
-    elif engine_type == "google":
+    if engine_type == "google":
         return GoogleSearchEngine(config)
     
     elif engine_type == "wikipedia":
