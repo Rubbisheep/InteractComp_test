@@ -85,7 +85,7 @@ class LLMKnowledgeSearchEngine(SearchEngine):
         
         results = []
         for i, paragraph in enumerate(paragraphs[:5]):
-            title = ' '.join(paragraph.split()[:8]) + "..."
+            title = ' '.join(paragraph.split()[:8])
             results.append({
                 "title": title,
                 "snippet": paragraph,
@@ -100,54 +100,62 @@ class LLMKnowledgeSearchEngine(SearchEngine):
 class GoogleSearchEngine(SearchEngine):
     
     def __init__(self, config: Dict[str, Any]):
-        google_config = config.get("search_engines", {}).get("google", {})
-        self.api_key = google_config.get("api_key")
-        self.search_engine_id = google_config.get("search_engine_id")  
-        self.endpoint = google_config.get("endpoint", "https://www.googleapis.com/customsearch/v1")
-        self.timeout = config.get("request_settings", {}).get("timeout", 30)
-        logger.info("GoogleSearchEngine initialized")
+        google_cfg = config.get("search_engines", {}).get("google", {})
+        self.api_key = google_cfg.get("api_key")  # Serper API Key
+        if not self.api_key:
+            raise ValueError("GoogleSearchEngine (Serper) requires 'api_key' in config.search_engines.google.api_key")
+        req_cfg = config.get("request_settings", {})
+        self.timeout = req_cfg.get("timeout", 30)
+        self.max_results = req_cfg.get("max_results_per_query", 5)
+        self.endpoint = "https://google.serper.dev/search"
+        logger.info(f"GoogleSearchEngine (Serper) initialized timeout={self.timeout}s max_results={self.max_results}")
     
     async def search(self, query: str) -> List[Dict[str, Any]]:
-        logger.info(f"Google Search: '{query}'")
-        
-        params = {
-            "key": self.api_key,
-            "cx": self.search_engine_id,
-            "q": query,
-            "num": 5,
+        logger.info(f"Google (Serper) Search: '{query}'")
+        headers = {
+            "X-API-KEY": self.api_key,
+            "Content-Type": "application/json"
         }
-        
+        payload = {"q": query}
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+
         try:
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
             async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
-                async with session.get(self.endpoint, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return self._format_google_results(data)
-                    else:
-                        error_text = await response.text()
-                        raise Exception(f"Google API error {response.status}: {error_text}")
-                        
-        except asyncio.TimeoutError:
-            raise Exception(f"Google search timeout after {self.timeout}s")
-        except aiohttp.ClientError as e:
-            raise Exception(f"Google search network error: {e}")
+                async with session.post(self.endpoint, json=payload, headers=headers) as resp:
+                    data = await resp.json(content_type=None)
+                    resp.raise_for_status()
+                    return self._format_serper_results(data, query)
         except Exception as e:
-            raise Exception(f"Google search failed: {e}")
+            err_type = type(e).__name__
+            msg = str(e)
+            logger.error(f"Serper search error ({err_type}): {msg}")
+            return [{
+                "title": "Serper search error",
+                "snippet": msg,
+                "source": "serper_api",
+                "relevance": 0.05,
+                "search_query": query
+            }]
     
-    def _format_google_results(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        items = data.get("items", [])
-        results = []
+    def _format_serper_results(self, data: Dict[str, Any], query: str) -> List[Dict[str, Any]]:
         
-        for item in items:
+        results: List[Dict[str, Any]] = []
+        organic = data.get("organic") or []
+        for i, item in enumerate(organic[: self.max_results]):
             results.append({
                 "title": item.get("title", "Untitled"),
-                "snippet": item.get("snippet", "No description"),
-                "source": item.get("link", "No link"),
+                "snippet": item.get("snippet", ""),
+                "source": item.get("link", ""),
+                "relevance": round(0.9 - i * 0.05, 3),
+                "search_query": query
             })
-        
-        logger.info(f"Google search returned {len(results)} results")
-        return results
+        return results or [{
+            "title": f"No organic results for '{query}'",
+            "snippet": "Serper returned empty organic list.",
+            "source": "serper_api",
+            "relevance": 0.2,
+            "search_query": query
+        }]
 
 
 class WikipediaSearchEngine(SearchEngine):
@@ -224,7 +232,6 @@ def create_search_engine(
         return LLMKnowledgeSearchEngine(llm_config=llm_config)
     
     config = SearchEngine.load_config(config_path)
-    
     logger.info(f"Creating search engine: {engine_type}")
     
     if engine_type == "google":

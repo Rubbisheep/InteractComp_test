@@ -7,7 +7,6 @@
 """
 
 import asyncio
-from utils.async_llm import LLMsConfig
 from utils.logs import logger
 
 from benchmarks.remind import RemindBenchmark 
@@ -16,31 +15,25 @@ from workflow.remind import RemindWorkflow
 async def main():
     dataset_path = "data/data.jsonl"
     log_path = "workspace/"
-    llm_config = LLMsConfig.default().get("gpt-4o")
     prompt = ""
-
-    logger.info("🚀 INITIALIZING REMIND BENCHMARK")
-    logger.info("="*60)
     
     results_summary = []
-    print("-" * 60)
     
     workflow = RemindWorkflow(
         name="Remind",
-        llm_config=llm_config,
+        llm_config="o3",
         dataset="Remind",
         prompt=prompt,
-        mode="EASY",  # HARD or EASY
         max_turns=5,
-        search_engine_type="wikipedia",
-        interactive=False
+        search_engine_type="google", # llm_knowledge, google, wikipedia
+        user_config="gpt-4o"
     )
 
     benchmark = RemindBenchmark(
-        name=f"Remind_{"wikipedia"}", 
+        name=f"Remind_{"google"}", 
         file_path=dataset_path, 
         log_path=log_path,
-        grader_config=llm_config
+        grader_config="gpt-4o"
     )
     
     results = await benchmark.run_baseline(workflow, max_concurrent_tasks=1)
