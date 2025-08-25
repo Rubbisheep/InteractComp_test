@@ -1,0 +1,30 @@
+# requirements_minimal.txt - Core dependencies only
+# For REMIND Annotation Testing Platform on Python 3.11
+
+# Web API Framework (Required)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+aiofiles==23.2.0
+
+# Data Processing (Required)
+pydantic==2.5.2
+pandas==2.1.4
+
+# HTTP & API Integration (Required)
+aiohttp==3.9.1
+openai==1.6.1
+
+# Configuration & Utilities (Required)
+PyYAML==6.0.1
+tqdm==4.66.1
+tenacity==8.2.3
+python-dateutil==2.8.2
+
+# System Utilities (Required)
+typing-extensions==4.8.0
+
+# Web API 依赖
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6

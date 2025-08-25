@@ -210,3 +210,7 @@ config/config2.yaml
 config/search_config.yaml
 workspace/
 logs/
+misc/
+
+frontend/node_modules/
+temp_uploads/
