@@ -254,8 +254,8 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
         # 创建Agent工厂
         from workflow.InteractComp import create_multi_model_agent_factory
         agent_factory = create_multi_model_agent_factory(
-            max_turns=3,  # 多模型评估时减少轮数节省成本
-            search_engine_type="llm_knowledge",
+            max_turns=5,  # 多模型评估时减少轮数节省成本
+            search_engine_type="google",
             user_config="gpt-4o"
         )
         task["progress"] = 40
@@ -265,7 +265,7 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
 
         results = await benchmark.run_multi_model_evaluation(
             agent_factory, 
-            max_concurrent_tasks=1
+            max_concurrent_tasks=5
         )
         task["progress"] = 90
         
@@ -319,7 +319,7 @@ class MultiModelBenchmark:
         self.models = models
         self.grader_llm = None  # 将在评估时初始化
 
-    async def run_multi_model_evaluation(self, max_concurrent_tasks: int = 1):
+    async def run_multi_model_evaluation(self, max_concurrent_tasks: int = 5):
         """运行多模型评估"""
         # 加载数据
         data = []
@@ -375,8 +375,8 @@ class MultiModelBenchmark:
                     llm_config=model,
                     dataset="InteractComp", 
                     prompt="",
-                    max_turns=3,  # 减少轮数节省成本
-                    search_engine_type="llm_knowledge",
+                    max_turns=5,  # 减少轮数节省成本
+                    search_engine_type="google",
                     user_config="gpt-4o"
                 )
                 

@@ -24,7 +24,7 @@ class InteractCompAgent(Workflow):
         dataset: str,
         prompt: str,
         max_turns: int = 5,
-        search_engine_type: str = "llm_knowledge",
+        search_engine_type: str = "google",
         user_config: str = "gpt-4o"
     ):
         super().__init__(name, llm_config, dataset)
@@ -239,8 +239,8 @@ class InteractCompAgentFactory:
         base_name: str = "MultiModelAgent",
         dataset: str = "InteractComp",
         prompt: str = "",
-        max_turns: int = 3,  # 多模型评估时减少轮数以节省成本
-        search_engine_type: str = "llm_knowledge",
+        max_turns: int = 5,  # 多模型评估时减少轮数以节省成本
+        search_engine_type: str = "google",
         user_config: str = "gpt-4o"
     ):
         self.base_name = base_name
@@ -286,8 +286,8 @@ class InteractCompAgentFactory:
 
 # 便利函数：创建多模型评估所需的agent factory
 def create_multi_model_agent_factory(
-    max_turns: int = 3,
-    search_engine_type: str = "llm_knowledge", 
+    max_turns: int = 5,
+    search_engine_type: str = "google", 
     user_config: str = "gpt-4o"
 ) -> InteractCompAgentFactory:
     """

@@ -43,7 +43,7 @@ async def run_single_model_evaluation():
             dataset="InteractComp",
             prompt=prompt,
             max_turns=5,
-            search_engine_type="llm_knowledge",
+            search_engine_type="google",
             user_config="gpt-4o"
         )
 
@@ -82,8 +82,8 @@ async def run_multi_model_evaluation():
     
     # 创建Agent工厂
     agent_factory = create_multi_model_agent_factory(
-        max_turns=3,  # 多模型时减少轮数节省成本
-        search_engine_type="llm_knowledge",
+        max_turns=5,  # 多模型时减少轮数节省成本
+        search_engine_type="google",
         user_config="gpt-4o"
     )
 

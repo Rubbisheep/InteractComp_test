@@ -134,12 +134,12 @@ class InteractCompBenchmark(BaseBenchmark):
         
         # 判断质量：2个以上模型答对就是质量不合格
         quality_failed = correct_models_count >= 2
-        quality_score = 1.0 - (correct_models_count / len(self.evaluation_models))  # 质量分数
+        score = 1.0 - (correct_models_count / len(self.evaluation_models))  # 质量分数
         
         logger.info(f"📈 Multi-model result: {correct_models_count}/{len(self.evaluation_models)} correct, Quality: {'FAILED' if quality_failed else 'PASSED'}")
         print(f"🎯 Quality Assessment: {correct_models_count}/{len(self.evaluation_models)} models correct → {'❌ Quality Failed' if quality_failed else '✅ Quality Passed'}")
 
-        return question, correct_answer, model_results, correct_models_count, quality_score, total_cost
+        return question, correct_answer, model_results, correct_models_count, score, total_cost
 
     async def calculate_score(self, question: str, correct_answer: str, predicted_answer: str) -> float:
         """评估单个答案的正确性"""
@@ -189,7 +189,7 @@ class InteractCompBenchmark(BaseBenchmark):
         """根据评估模式返回不同的列结构"""
         if self.multi_model_mode:
             # 多模型模式的列结构
-            base_columns = ["question", "correct_answer", "model_results", "correct_models_count", "quality_score", "total_cost"]
+            base_columns = ["question", "correct_answer", "model_results", "correct_models_count", "score", "cost"]
             return base_columns
         else:
             # 原有单模型模式的列结构
@@ -205,7 +205,7 @@ class InteractCompBenchmark(BaseBenchmark):
         
         # 计算统计信息
         total_questions = len(results)
-        total_cost = sum(result[5] for result in results)  # total_cost是第6列
+        total_cost = sum(result[-1] for result in results) 
         quality_failed_count = sum(1 for result in results if result[3] >= 2)  # correct_models_count >= 2
         avg_quality_failed_rate = quality_failed_count / total_questions if total_questions > 0 else 0
         avg_cost = total_cost / total_questions if total_questions > 0 else 0
@@ -233,7 +233,7 @@ class InteractCompBenchmark(BaseBenchmark):
                     "model_results": result[2],
                     "correct_models_count": result[3],
                     "quality_failed": result[3] >= 2,
-                    "quality_score": result[4],
+                    "score": result[4],
                     "total_cost": result[5]
                 }
                 for result in results

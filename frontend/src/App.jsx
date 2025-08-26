@@ -96,19 +96,28 @@ const InteractCompTestingPlatform = () => {
 
     try {
       const fileIds = files.map(f => f.id);
-      
-      const startResponse = await fetch('/test/start', {
+      const startResponse = await fetch('http://localhost:8000/test/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_ids: fileIds
-        })
-      });
+        body: JSON.stringify(fileIds),  
+        });
 
-      if (!startResponse.ok) {
-        const errorData = await startResponse.json();
-        throw new Error(errorData.detail || '启动测试失败');
-      }
+        // const text = await startResponse.text();
+        // if (!startResponse.ok) throw new Error(text);
+        // alert('启动成功：' + text);
+
+    //   const startResponse = await fetch('/test/start', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({
+    //       file_ids: fileIds
+    //     })
+    //   });
+
+    //   if (!startResponse.ok) {
+    //     const errorData = await startResponse.json();
+    //     throw new Error(errorData.detail || '启动测试失败');
+    //   }
 
       const { task_id } = await startResponse.json();
 
@@ -204,7 +213,7 @@ const InteractCompTestingPlatform = () => {
             </h1>
           </div>
           <p className="text-xl text-slate-300 mb-6">
-            基于config2.yaml配置，自动使用 GPT-5-mini, GPT-5, Claude-4 三个模型评估标注质量
+            自动使用 GPT-5-mini, GPT-5, Claude-4-sonnet 三个模型评估标注质量
           </p>
           <div className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300">
             <Target className="w-5 h-5" />
@@ -324,7 +333,7 @@ const InteractCompTestingPlatform = () => {
                     </div>
                   </div>
                   <h3 className="text-2xl font-bold text-slate-200 mb-3">上传 InteractComp 格式数据</h3>
-                  <p className="text-slate-400 mb-6">支持 .jsonl 格式文件，包含 question/answer/context 字段</p>
+                  <p className="text-slate-400 mb-6">支持 .jsonl 格式文件，包含 domain/question/answer/wrong_answer/context 字段</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -391,7 +400,7 @@ const InteractCompTestingPlatform = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Target className="w-5 h-5 text-purple-400" />
-                        <span className="text-slate-300">Claude-4</span>
+                        <span className="text-slate-300">Claude-4-sonnet</span>
                       </div>
                     </div>
                     <div className="max-w-md mx-auto">
