@@ -100,11 +100,12 @@ class LLMKnowledgeSearchEngine(SearchEngine):
 class GoogleSearchEngine(SearchEngine):
     
     def __init__(self, config: Dict[str, Any]):
-        google_cfg = config.get("search_engines", {}).get("google", {})
+        search_config = config.get("search", {})
+        google_cfg = search_config.get("engines", {}).get("google", {})
         self.api_key = google_cfg.get("api_key")  # Serper API Key
         if not self.api_key:
-            raise ValueError("GoogleSearchEngine (Serper) requires 'api_key' in config.search_engines.google.api_key")
-        req_cfg = config.get("request_settings", {})
+            raise ValueError("GoogleSearchEngine (Serper) requires 'api_key' in config.search.engines.google.api_key")
+        req_cfg = search_config.get("request_settings", {})
         self.timeout = req_cfg.get("timeout", 30)
         self.max_results = req_cfg.get("max_results_per_query", 5)
         self.endpoint = "https://google.serper.dev/search"
@@ -224,7 +225,7 @@ class WikipediaSearchEngine(SearchEngine):
 
 def create_search_engine(
     engine_type: str, 
-    config_path: str = "config/search_config.yaml",
+    config_path: str = "config/config2.yaml",
     llm_config=None
 ) -> SearchEngine:
     

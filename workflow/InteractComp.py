@@ -5,13 +5,12 @@
 """
 
 import re
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Dict, Any
 
 from workflow.base import Workflow
 from utils.async_llm import AsyncLLM
 from utils.formatter import XmlFormatter
 from workflow.search_engine import create_search_engine
-# from workflow.human_agent import HumanAgent
 from workflow.user_agent import UserAgent
 from workflow.prompt import BASE_PROMPT, FORCE_PROMPT
 from utils.logs import logger
@@ -36,7 +35,7 @@ class InteractCompAgent(Workflow):
         self.user_agent = UserAgent(llm_config=user_config)
 
         logger.info(
-            f"InteractCompWorkflow initialized: max_turns={max_turns}, search={search_engine_type}"
+            f"InteractCompWorkflow initialized: model={llm_config}, max_turns={max_turns}, search={search_engine_type}"
         )
 
     async def __call__(self, problem_data: dict) -> Tuple[str, List[dict], float]:
@@ -107,7 +106,7 @@ class InteractCompAgent(Workflow):
 
     def make_banner(self, question, problem_data):
         print("\n" + "=" * 80)
-        print("SEARCH AGENT STARTED")
+        print(f"SEARCH AGENT STARTED - Model: {self.llm.config.model}")
         print("=" * 80)
         print(f"Question: {question}")
         print(f"Domain: {problem_data.get('domain', 'Unknown')}| Max Turns: {self.max_turns}")
@@ -211,7 +210,6 @@ class InteractCompAgent(Workflow):
     def parse_response(self, response: str) -> dict:
         if response is None:
             return {"thought": "no_response", "action": "no_response"}
-        # logger.info(f"LLM Response: {response}")
 
         text = str(response).strip()
         fence = re.search(r"```(?:\w+)?\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
@@ -228,3 +226,86 @@ class InteractCompAgent(Workflow):
         action = action_m.group(1).strip()
 
         return {"thought": thought, "action": action}
+
+
+class InteractCompAgentFactory:
+    """
+    InteractComp Agent工厂类，用于多模型评估
+    可以根据不同的模型配置创建Agent实例
+    """
+    
+    def __init__(
+        self,
+        base_name: str = "MultiModelAgent",
+        dataset: str = "InteractComp",
+        prompt: str = "",
+        max_turns: int = 3,  # 多模型评估时减少轮数以节省成本
+        search_engine_type: str = "llm_knowledge",
+        user_config: str = "gpt-4o"
+    ):
+        self.base_name = base_name
+        self.dataset = dataset
+        self.prompt = prompt
+        self.max_turns = max_turns
+        self.search_engine_type = search_engine_type
+        self.user_config = user_config
+        
+        logger.info(f"InteractCompAgentFactory initialized with {max_turns} turns, search: {search_engine_type}")
+    
+    def create_agent(self, model_config: str) -> InteractCompAgent:
+        """
+        根据模型配置创建Agent实例
+        
+        Args:
+            model_config: 模型配置名称，如 "gpt-4o", "claude-3-5-sonnet-20241022"
+            
+        Returns:
+            配置好的InteractCompAgent实例
+        """
+        agent_name = f"{self.base_name}_{model_config}"
+        
+        agent = InteractCompAgent(
+            name=agent_name,
+            llm_config=model_config,
+            dataset=self.dataset,
+            prompt=self.prompt,
+            max_turns=self.max_turns,
+            search_engine_type=self.search_engine_type,
+            user_config=self.user_config
+        )
+        
+        logger.info(f"Created agent: {agent_name} with model: {model_config}")
+        return agent
+    
+    def __call__(self, model_config: str) -> InteractCompAgent:
+        """
+        使工厂类可调用，方便作为agent_factory传递给benchmark
+        """
+        return self.create_agent(model_config)
+
+
+# 便利函数：创建多模型评估所需的agent factory
+def create_multi_model_agent_factory(
+    max_turns: int = 3,
+    search_engine_type: str = "llm_knowledge", 
+    user_config: str = "gpt-4o"
+) -> InteractCompAgentFactory:
+    """
+    创建用于多模型评估的Agent工厂
+    
+    Args:
+        max_turns: 每个模型的最大推理轮数
+        search_engine_type: 搜索引擎类型
+        user_config: 用户代理配置
+        
+    Returns:
+        InteractCompAgentFactory实例
+    """
+    return InteractCompAgentFactory(
+        base_name="MultiModelAgent",
+        dataset="InteractComp",
+        prompt="",
+        max_turns=max_turns,
+        search_engine_type=search_engine_type,
+        user_config=user_config
+    )
