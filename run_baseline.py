@@ -9,8 +9,8 @@
 import asyncio
 from utils.logs import logger
 
-from benchmarks.remind import RemindBenchmark 
-from workflow.remind import RemindWorkflow
+from benchmarks.InteractComp import InteractCompBenchmark
+from workflow.InteractComp import InteractCompAgent
 
 async def main():
     dataset_path = "data/data.jsonl"
@@ -18,25 +18,25 @@ async def main():
     prompt = ""
     
     results_summary = []
-    
-    workflow = RemindWorkflow(
-        name="Remind",
+
+    agent = InteractCompAgent(
+        name="InteractComp",
         llm_config="o3",
-        dataset="Remind",
+        dataset="InteractComp",
         prompt=prompt,
         max_turns=5,
         search_engine_type="google", # llm_knowledge, google, wikipedia
         user_config="gpt-4o"
     )
 
-    benchmark = RemindBenchmark(
-        name=f"Remind_{"google"}", 
+    benchmark = InteractCompBenchmark(
+        name=f"InteractComp", 
         file_path=dataset_path, 
         log_path=log_path,
         grader_config="gpt-4o"
     )
-    
-    results = await benchmark.run_baseline(workflow, max_concurrent_tasks=1)
+
+    results = await benchmark.run_baseline(agent, max_concurrent_tasks=1)
     avg_score, avg_cost, total_cost = results
     
     results_summary.append({

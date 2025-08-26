@@ -1,5 +1,5 @@
 """
-@File    :   workflow/remind.py
+@File    :   workflow/InteractComp.py
 @Time    :   2025/08/11
 @Author  :   Deng Mingyi
 """
@@ -16,7 +16,7 @@ from workflow.user_agent import UserAgent
 from workflow.prompt import BASE_PROMPT, FORCE_PROMPT
 from utils.logs import logger
 
-class RemindWorkflow(Workflow):
+class InteractCompAgent(Workflow):
 
     def __init__(
         self,
@@ -36,7 +36,7 @@ class RemindWorkflow(Workflow):
         self.user_agent = UserAgent(llm_config=user_config)
 
         logger.info(
-            f"RemindWorkflow initialized: max_turns={max_turns}, search={search_engine_type}"
+            f"InteractCompWorkflow initialized: max_turns={max_turns}, search={search_engine_type}"
         )
 
     async def __call__(self, problem_data: dict) -> Tuple[str, List[dict], float]:

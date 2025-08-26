@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-@File    :   benchmarks/remind.py
+@File    :   benchmarks/InteractComp.py
 @Time    :   2025/08/11
 @Author  :   Deng Mingyi
 """
@@ -31,7 +31,7 @@ IMPORTANT: Give ONLY one score:
 
 Respond with ONLY 'yes' or 'no', nothing else."""
 
-class RemindBenchmark(BaseBenchmark):
+class InteractCompBenchmark(BaseBenchmark):
     
     def __init__(self, name: str, file_path: str, log_path: str, grader_config:str="gpt-4o"):
         super().__init__(name, file_path, log_path)

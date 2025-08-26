@@ -115,7 +115,7 @@ const ModernAnnotationTestingPlatform = () => {
           setProgress(status.progress || 0);
 
           if (status.status === 'completed') {
-            // 修正REMIND逻辑：模型答错率 = 标注质量分
+            // 修正InteractComp逻辑：模型答错率 = 标注质量分
             const modelCorrectRate = status.average_score; // 模型正确率
             const annotationQualityScore = 1 - modelCorrectRate; // 标注质量分 = 1 - 模型正确率
             const goodAnnotations = Math.round(annotationQualityScore * status.total_questions); // 好的标注数量
@@ -204,7 +204,7 @@ const ModernAnnotationTestingPlatform = () => {
             </h1>
           </div>
           <p className="text-xl text-slate-300 mb-6">
-            智能评估你的标注数据质量，让模型答错才是好标注
+            智能评估你的标注数据质量
           </p>
           <div className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300">
             <Target className="w-5 h-5" />
@@ -577,11 +577,11 @@ const ModernAnnotationTestingPlatform = () => {
                       <BarChart3 className="w-10 h-10 text-slate-400" />
                     </div>
                     <h3 className="text-2xl font-bold text-slate-300 mb-4">准备开始测试</h3>
-                    <p className="text-slate-400 mb-8">上传 REMIND 格式数据并配置模型参数</p>
+                    <p className="text-slate-400 mb-8">上传 InteractComp 格式数据并配置模型参数</p>
                     <div className="max-w-md mx-auto p-6 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                       <p className="text-blue-300 font-medium">💡 测试提醒</p>
                       <p className="text-slate-400 text-sm mt-2">
-                        REMIND 评估标注质量 - AI答错说明标注优秀，答对说明需要改进难度
+                        InteractComp 评估标注质量 - AI答错说明标注优秀，答对说明需要改进难度
                       </p>
                     </div>
                   </div>

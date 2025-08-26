@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-简单的FastAPI包装器 - 基于现有的RemindWorkflow和RemindBenchmark
+简单的FastAPI包装器 - 基于现有的InteractCompAgent和InteractCompBenchmark
 """
 
 import asyncio
@@ -21,8 +21,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # 导入现有的模块
-from benchmarks.remind import RemindBenchmark
-from workflow.remind import RemindWorkflow
+from benchmarks.InteractComp import InteractCompBenchmark
+from workflow.InteractComp import InteractCompAgent
 from utils.logs import logger
 
 app = FastAPI(title="InteractComp标注质量测试API", version="1.0.0")
@@ -202,7 +202,7 @@ async def download_report(task_id: str):
     )
 
 async def run_test_with_existing_code(task_id: str, file_ids: List[str], config: TestConfig):
-    """使用现有的RemindWorkflow和RemindBenchmark运行测试"""
+    """使用现有的InteractCompAgent和InteractCompBenchmark运行测试"""
     task = tasks[task_id]
     
     try:
@@ -216,24 +216,24 @@ async def run_test_with_existing_code(task_id: str, file_ids: List[str], config:
         # 2. 合并上传的数据文件
         combined_file_path = await merge_uploaded_files(file_ids, task_id)
         task["progress"] = 30
-        
-        # 3. 创建RemindWorkflow实例 (使用你的代码结构)
-        workflow = RemindWorkflow(
+
+        # 3. 创建InteractCompAgent实例 (使用你的代码结构)
+        agent = InteractCompAgent(
             name="WebTest",
             llm_config=config.llm_config,
-            dataset="REMIND",
+            dataset="InteractComp",
             prompt="",  # 你的代码中prompt为空字符串
             max_turns=config.max_turns,
             search_engine_type=config.search_engine_type,
             user_config=config.user_config
         )
         task["progress"] = 40
-        
-        # 4. 创建RemindBenchmark实例
+
+        # 4. 创建InteractCompBenchmark实例
         log_path = f"workspace/web_test_{task_id}/"
         os.makedirs(log_path, exist_ok=True)
-        
-        benchmark = RemindBenchmark(
+
+        benchmark = InteractCompBenchmark(
             name=f"WebTest_{task_id}",
             file_path=combined_file_path,
             log_path=log_path,
@@ -242,10 +242,10 @@ async def run_test_with_existing_code(task_id: str, file_ids: List[str], config:
         task["progress"] = 50
         
         # 5. 执行测试 (直接调用你的run_baseline方法)
-        logger.info(f"开始执行REMIND基准测试: {task_id}")
-        
+        logger.info(f"开始执行InteractComp基准测试: {task_id}")
+
         average_score, average_cost, total_cost = await benchmark.run_baseline(
-            workflow,
+            agent,
             max_concurrent_tasks=config.max_concurrent_tasks
         )
         
@@ -364,5 +364,5 @@ if __name__ == "__main__":
     import uvicorn
     print("🚀 启动InteractComp标注质量测试平台API服务")
     print("🌐 API文档: http://localhost:8000/docs")
-    print("📊 基于现有RemindWorkflow和RemindBenchmark")
+    print("📊 基于现有InteractCompAgent和InteractCompBenchmark")
     uvicorn.run(app, host="0.0.0.0", port=8000)

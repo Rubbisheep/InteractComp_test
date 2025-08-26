@@ -1,5 +1,5 @@
 # requirements_minimal.txt - Core dependencies only
-# For REMIND Annotation Testing Platform on Python 3.11
+# For InteractComp Annotation Testing Platform on Python 3.11
 
 # Web API Framework (Required)
 fastapi==0.104.1
