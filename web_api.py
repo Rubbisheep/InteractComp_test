@@ -203,12 +203,12 @@ async def download_csv_report(task_id: str):
         writer.writerow([
             item.get("question", ""),
             item.get("correct_answer", ""),
-            item.get("model_results", {}).get("gpt-4o-mini", {}).get("answer", ""),
-            item.get("model_results", {}).get("gpt-4o-mini", {}).get("correct", False),
-            item.get("model_results", {}).get("gpt-4o", {}).get("answer", ""),
-            item.get("model_results", {}).get("gpt-4o", {}).get("correct", False),
-            item.get("model_results", {}).get("claude-3-5-sonnet-20241022", {}).get("answer", ""),
-            item.get("model_results", {}).get("claude-3-5-sonnet-20241022", {}).get("correct", False),
+            item.get("model_results", {}).get("gpt-5-mini", {}).get("answer", ""),           # 修正
+            item.get("model_results", {}).get("gpt-5-mini", {}).get("correct", False),       # 修正
+            item.get("model_results", {}).get("gpt-5", {}).get("answer", ""),               # 修正
+            item.get("model_results", {}).get("gpt-5", {}).get("correct", False),           # 修正
+            item.get("model_results", {}).get("claude-4-sonnet", {}).get("answer", ""),     # 修正
+            item.get("model_results", {}).get("claude-4-sonnet", {}).get("correct", False), # 修正
             item.get("correct_models_count", 0),
             item.get("quality_failed", False),
             item.get("total_cost", 0.0)
