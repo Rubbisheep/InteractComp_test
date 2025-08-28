@@ -265,7 +265,7 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
 
         results = await benchmark.run_multi_model_evaluation(
             agent_factory, 
-            max_concurrent_tasks=5
+            max_concurrent_tasks=20
         )
         task["progress"] = 90
         
@@ -319,7 +319,7 @@ class MultiModelBenchmark:
         self.models = models
         self.grader_llm = None  # 将在评估时初始化
 
-    async def run_multi_model_evaluation(self, max_concurrent_tasks: int = 5):
+    async def run_multi_model_evaluation(self, max_concurrent_tasks: int = 20):
         """运行多模型评估"""
         # 加载数据
         data = []

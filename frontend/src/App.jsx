@@ -96,7 +96,7 @@ const InteractCompTestingPlatform = () => {
 
     try {
       const fileIds = files.map(f => f.id);
-      const startResponse = await fetch('http://localhost:8000/test/start', {
+      const startResponse = await fetch('/test/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fileIds),  

@@ -57,7 +57,7 @@ async def run_single_model_evaluation():
         )
 
         # 运行评估
-        avg_score, avg_cost, total_cost = await benchmark.run_baseline(agent, max_concurrent_tasks=1)
+        avg_score, avg_cost, total_cost = await benchmark.run_baseline(agent, max_concurrent_tasks=20)
         
         results_summary.append({
             "model": model_config,
@@ -99,7 +99,7 @@ async def run_multi_model_evaluation():
     # 运行多模型评估
     results = await benchmark.run_multi_model_evaluation(
         agent_factory, 
-        max_concurrent_tasks=1
+        max_concurrent_tasks=20
     )
     
     print(f"\n🎯 Multi-Model Evaluation Results:")
