@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-简化版FastAPI - 固定使用三个模型评估标注质量
+多用户版FastAPI - 固定使用三个模型评估标注质量
 """
 
 import asyncio
@@ -14,8 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks
+from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -24,8 +25,9 @@ from pydantic import BaseModel
 from benchmarks.InteractComp import InteractCompBenchmark
 from workflow.InteractComp import InteractCompAgent
 from utils.logs import logger
+from utils.user_manager import UserManager, UserDataManager
 
-app = FastAPI(title="InteractComp标注质量测试API", version="2.0.0")
+app = FastAPI(title="InteractComp多用户标注质量测试API", version="3.0.0")
 
 # CORS配置
 app.add_middleware(
@@ -42,6 +44,96 @@ EVALUATION_MODELS = [
     "gpt-5", 
     "claude-4-sonnet"
 ]
+
+# 初始化用户管理器
+user_manager = UserManager()
+user_data_manager = UserDataManager()
+
+# 并发任务管理器
+class TaskManager:
+    def __init__(self):
+        self.running_tasks: Dict[str, asyncio.Task] = {}
+        self.executor = ThreadPoolExecutor(max_workers=15)  # 最多5个并发评估任务
+    
+    def start_task(self, task_id: str, coro):
+        """启动新的异步任务"""
+        if task_id in self.running_tasks:
+            logger.warning(f"任务 {task_id} 已在运行中")
+            return
+        
+        # 包装协程，增加异常处理
+        async def wrapped_coro():
+            try:
+                await coro
+                logger.info(f"任务 {task_id} 成功完成")
+            except Exception as e:
+                logger.error(f"任务 {task_id} 执行失败: {e}")
+                # 更新任务状态为失败
+                try:
+                    user_data_manager.update_task_by_id(task_id, {
+                        "status": "failed",
+                        "error": str(e),
+                        "completed_at": datetime.now().isoformat()
+                    })
+                except Exception as update_error:
+                    logger.error(f"更新任务状态失败 {task_id}: {update_error}")
+        
+        task = asyncio.create_task(wrapped_coro())
+        self.running_tasks[task_id] = task
+        
+        # 任务完成后自动清理
+        def cleanup(future):
+            if task_id in self.running_tasks:
+                del self.running_tasks[task_id]
+                logger.debug(f"任务 {task_id} 已清理，剩余运行任务数: {len(self.running_tasks)}")
+        
+        task.add_done_callback(cleanup)
+        logger.info(f"任务 {task_id} 已启动，当前运行任务数: {len(self.running_tasks)}")
+    
+    def is_task_running(self, task_id: str) -> bool:
+        """检查任务是否正在运行"""
+        return task_id in self.running_tasks
+    
+    def get_running_task_count(self) -> int:
+        """获取当前运行任务数量"""
+        return len(self.running_tasks)
+    
+    def get_running_task_ids(self) -> List[str]:
+        """获取正在运行的任务ID列表"""
+        return list(self.running_tasks.keys())
+
+# 创建全局任务管理器
+task_manager = TaskManager()
+
+# Pydantic模型
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    display_name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class TaskCreate(BaseModel):
+    file_ids: List[str]
+
+# 认证依赖
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    """获取当前用户"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未提供认证信息")
+    
+    token = authorization[7:]  # 移除 "Bearer "
+    user_id = user_manager.validate_session(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="认证失效，请重新登录")
+    
+    user_info = user_manager.get_user_info(user_id)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="用户不存在")
+    
+    return user_info
 
 # 支持的搜索引擎配置（用于Google搜索）
 def get_search_config():
@@ -85,26 +177,77 @@ def get_config():
         CONFIG = load_config()
     return CONFIG
 
-# 任务状态存储
-tasks: Dict[str, dict] = {}
-uploaded_files: Dict[str, str] = {}
-
 @app.get("/")
 async def root():
     """根路径 - 检查服务状态"""
     return {
-        "message": "InteractComp标注数据质量测试API - 配置文件版本",
-        "version": "2.1.0",
+        "message": "InteractComp多用户标注数据质量测试API",
+        "version": "3.0.0",
         "evaluation_models": EVALUATION_MODELS,
+        "features": ["多用户支持", "数据共享", "会话管理"],
         "config_note": "API Keys通过config2.yaml文件配置",
         "status": "running"
     }
 
+# 用户认证相关接口
+@app.post("/auth/register")
+async def register_user(user_data: UserRegister):
+    """用户注册"""
+    try:
+        result = user_manager.register_user(
+            username=user_data.username,
+            password=user_data.password,
+            display_name=user_data.display_name
+        )
+        return {
+            "message": "注册成功",
+            "user": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/auth/login")
+async def login_user(user_data: UserLogin):
+    """用户登录"""
+    user_info = user_manager.authenticate_user(user_data.username, user_data.password)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    
+    # 创建会话
+    session_token = user_manager.create_session(user_info["user_id"])
+    
+    return {
+        "message": "登录成功",
+        "user": user_info,
+        "token": session_token
+    }
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """获取当前用户信息"""
+    return current_user
+
+@app.post("/auth/logout")
+async def logout_user(authorization: Optional[str] = Header(None)):
+    """用户登出（清理会话）"""
+    # 这里可以添加会话清理逻辑
+    return {"message": "登出成功"}
+
+# 用户管理接口
+@app.get("/users")
+async def list_users(current_user: dict = Depends(get_current_user)):
+    """获取所有用户列表"""
+    users = user_manager.list_all_users()
+    return {
+        "users": users,
+        "total": len(users)
+    }
+
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     """上传JSONL数据文件"""
     if not file.filename.endswith(('.jsonl', '.json')):
-        raise HTTPException(status_code=400, detail="只支持.jsonl和.json格式文件")
+        raise HTTPException(status_code=400, detail="只支持.jsonl或.json文件")
     
     file_id = str(uuid.uuid4())
     temp_dir = Path("temp_uploads")
@@ -113,39 +256,93 @@ async def upload_file(file: UploadFile = File(...)):
     file_path = temp_dir / f"{file_id}_{file.filename}"
     
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        content = await file.read()
+        buffer.write(content)
     
-    uploaded_files[file_id] = str(file_path)
+    # 保存文件信息到用户数据
+    file_info = {
+        "file_id": file_id,
+        "filename": file.filename,
+        "size": len(content),
+        "file_path": str(file_path),
+        "status": "uploaded"
+    }
     
-    logger.info(f"文件上传成功: {file.filename}, ID: {file_id}")
+    user_data_manager.save_user_file(current_user["user_id"], file_id, file_info)
+    
+    logger.info(f"用户 {current_user['username']} 上传文件: {file.filename}, ID: {file_id}")
     
     return {
         "file_id": file_id,
         "filename": file.filename,
-        "size": file_path.stat().st_size,
+        "size": len(content),
         "status": "uploaded"
     }
 
-@app.post("/test/start")
+@app.get("/files")
+async def get_user_files(current_user: dict = Depends(get_current_user)):
+    """获取当前用户的文件列表"""
+    files = user_data_manager.get_user_files(current_user["user_id"])
+    return {
+        "files": list(files.values()),
+        "total": len(files)
+    }
+
+@app.delete("/files/{file_id}")
+async def delete_user_file(file_id: str, current_user: dict = Depends(get_current_user)):
+    """删除用户文件"""
+    try:
+        # 检查文件是否属于当前用户
+        user_files = user_data_manager.get_user_files(current_user["user_id"])
+        if file_id not in user_files:
+            raise HTTPException(status_code=404, detail="文件不存在或无权限")
+        
+        # 检查文件是否正在被任务使用
+        user_tasks = user_data_manager.get_user_tasks(current_user["user_id"])
+        for task_id, task in user_tasks.items():
+            if task.get('status') == 'running' and file_id in task.get('file_ids', []):
+                raise HTTPException(status_code=400, detail="文件正在被运行中的任务使用，无法删除")
+        
+        file_info = user_files[file_id]
+        file_path = file_info.get('file_path')
+        
+        # 删除物理文件
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"删除物理文件: {file_path}")
+        
+        # 从用户数据中删除文件记录
+        user_data_manager.delete_user_file(current_user["user_id"], file_id)
+        
+        logger.info(f"用户 {current_user['username']} 删除文件: {file_id}")
+        
+        return {"success": True, "message": "文件删除成功"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除文件失败: {file_id}, 错误: {e}")
+        raise HTTPException(status_code=500, detail=f"删除文件失败: {str(e)}")
+
+@app.post("/start_test")
 async def start_test(
-    file_ids: List[str],
-    background_tasks: BackgroundTasks
+    task_data: TaskCreate,
+    current_user: dict = Depends(get_current_user)
 ):
     """开始三模型评估测试"""
-    # 验证文件
-    for file_id in file_ids:
-        if file_id not in uploaded_files:
-            raise HTTPException(status_code=400, detail=f"文件{file_id}不存在")
+    # 验证文件权限（检查文件是否属于当前用户）
+    user_files = user_data_manager.get_user_files(current_user["user_id"])
+    for file_id in task_data.file_ids:
+        if file_id not in user_files:
+            raise HTTPException(status_code=403, detail=f"文件 {file_id} 不属于当前用户")
     
     # 验证配置文件
     try:
-        config = get_config()
-        if 'models' not in config:
-            raise HTTPException(status_code=500, detail="配置文件格式错误：缺少models配置")
+        get_config()
     except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="未找到config2.yaml配置文件，请先配置API Keys")
+        raise HTTPException(status_code=500, detail="配置文件config2.yaml未找到")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"配置文件读取失败：{str(e)}")
+        raise HTTPException(status_code=500, detail=f"配置文件错误: {str(e)}")
     
     # 创建任务
     task_id = str(uuid.uuid4())
@@ -154,35 +351,70 @@ async def start_test(
         "status": "pending",
         "progress": 0,
         "created_at": datetime.now().isoformat(),
-        "file_ids": file_ids,
-        "evaluation_models": EVALUATION_MODELS
+        "file_ids": task_data.file_ids,
+        "evaluation_models": EVALUATION_MODELS,
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
+        "display_name": current_user["display_name"]
     }
-    tasks[task_id] = task_info
     
-    # 启动后台任务
-    background_tasks.add_task(run_multi_model_evaluation, task_id, file_ids)
+    # 保存任务到用户数据
+    user_data_manager.save_user_task(current_user["user_id"], task_id, task_info)
     
-    logger.info(f"三模型评估任务启动: {task_id}")
+    # 使用任务管理器启动并发任务
+    evaluation_coro = run_multi_model_evaluation(task_id, task_data.file_ids, current_user["user_id"])
+    task_manager.start_task(task_id, evaluation_coro)
+    
+    logger.info(f"用户 {current_user['username']} 启动三模型评估任务: {task_id}，当前运行任务数: {task_manager.get_running_task_count()}")
     
     return {"task_id": task_id, "status": "started", "models": EVALUATION_MODELS}
 
+@app.get("/system/status")
+async def get_system_status():
+    """获取系统状态"""
+    return {
+        "running_tasks": task_manager.get_running_task_count(),
+        "running_task_ids": task_manager.get_running_task_ids(),
+        "max_concurrent_tasks": 5,
+        "system_time": datetime.now().isoformat(),
+        "available_slots": max(0, 5 - task_manager.get_running_task_count())
+    }
+
 @app.get("/test/{task_id}")
-async def get_test_status(task_id: str):
+async def get_test_status(task_id: str, current_user: dict = Depends(get_current_user)):
     """获取测试状态"""
-    if task_id not in tasks:
+    # 从共享数据中获取任务（所有用户都可以查看）
+    task = user_data_manager.get_task(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
-    return tasks[task_id]
+    return task
+
+@app.get("/tasks")
+async def get_tasks(current_user: dict = Depends(get_current_user)):
+    """获取任务列表"""
+    # 用户自己的任务
+    user_tasks = user_data_manager.get_user_tasks(current_user["user_id"])
+    # 所有用户的任务（共享查看）
+    all_tasks = user_data_manager.get_all_tasks()
+    
+    return {
+        "user_tasks": list(user_tasks.values()),
+        "all_tasks": list(all_tasks.values()),
+        "user_task_count": len(user_tasks),
+        "total_task_count": len(all_tasks)
+    }
 
 @app.get("/test/{task_id}/download-csv")
-async def download_csv_report(task_id: str):
+async def download_csv_report(task_id: str, current_user: dict = Depends(get_current_user)):
     """下载CSV格式的测试报告"""
-    if task_id not in tasks:
+    # 从共享数据中获取任务（所有用户都可以下载）
+    task = user_data_manager.get_task(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
-    task = tasks[task_id]
     if task["status"] != "completed":
-        raise HTTPException(status_code=400, detail="测试未完成")
+        raise HTTPException(status_code=400, detail="任务未完成，无法下载报告")
     
     # 创建详细的CSV报告
     import tempfile
@@ -195,7 +427,8 @@ async def download_csv_report(task_id: str):
         'gpt5_mini_answer', 'gpt5_mini_correct',
         'gpt5_answer', 'gpt5_correct', 
         'claude4_answer', 'claude4_correct',
-        'models_correct_count', 'quality_failed', 'cost'
+        'models_correct_count', 'quality_failed', 'cost',
+        'created_by', 'created_at'
     ])
     
     # 写入数据
@@ -203,40 +436,45 @@ async def download_csv_report(task_id: str):
         writer.writerow([
             item.get("question", ""),
             item.get("correct_answer", ""),
-            item.get("model_results", {}).get("gpt-5-mini", {}).get("answer", ""),           # 修正
-            item.get("model_results", {}).get("gpt-5-mini", {}).get("correct", False),       # 修正
-            item.get("model_results", {}).get("gpt-5", {}).get("answer", ""),               # 修正
-            item.get("model_results", {}).get("gpt-5", {}).get("correct", False),           # 修正
-            item.get("model_results", {}).get("claude-4-sonnet", {}).get("answer", ""),     # 修正
-            item.get("model_results", {}).get("claude-4-sonnet", {}).get("correct", False), # 修正
+            item.get("model_results", {}).get("gpt-5-mini", {}).get("answer", ""),           
+            item.get("model_results", {}).get("gpt-5-mini", {}).get("correct", False),       
+            item.get("model_results", {}).get("gpt-5", {}).get("answer", ""),               
+            item.get("model_results", {}).get("gpt-5", {}).get("correct", False),           
+            item.get("model_results", {}).get("claude-4-sonnet", {}).get("answer", ""),     
+            item.get("model_results", {}).get("claude-4-sonnet", {}).get("correct", False), 
             item.get("correct_models_count", 0),
             item.get("quality_failed", False),
-            item.get("total_cost", 0.0)
+            item.get("total_cost", 0.0),
+            task.get('display_name', task.get('username', '未知用户')),
+            task.get('created_at', '')
         ])
     
     temp_file.close()
     
+    task_creator = task.get('display_name', task.get('username', '未知用户'))
     return FileResponse(
         path=temp_file.name,
-        filename=f"三模型评估报告_{task_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        filename=f"三模型评估报告_{task_creator}_{task_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         media_type='text/csv'
     )
 
-async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
+async def run_multi_model_evaluation(task_id: str, file_ids: List[str], user_id: str):
     """运行三模型评估"""
-    task = tasks[task_id]
+    task = user_data_manager.get_task(task_id)
+    if not task:
+        logger.error(f"任务不存在: {task_id}")
+        return
     
     try:
-        task["status"] = "running"
-        task["progress"] = 10
+        user_data_manager.update_task(user_id, task_id, {"status": "running", "progress": 10})
         
-        # 1. 读取配置文件（不再需要更新，直接使用现有配置）
+        # 1. 读取配置文件
         config = get_config()
-        task["progress"] = 20
+        user_data_manager.update_task(user_id, task_id, {"progress": 20})
         
         # 2. 合并数据文件
-        combined_file_path = await merge_uploaded_files(file_ids, task_id)
-        task["progress"] = 30
+        combined_file_path = await merge_uploaded_files(file_ids, task_id, user_id)
+        user_data_manager.update_task(user_id, task_id, {"progress": 30})
 
         # 3. 创建多模型评估器和Agent工厂
         log_path = f"workspace/multi_model_test_{task_id}/"
@@ -258,7 +496,7 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
             search_engine_type="google",
             user_config="gpt-4o"
         )
-        task["progress"] = 40
+        user_data_manager.update_task(user_id, task_id, {"progress": 40})
         
         # 4. 执行多模型评估
         logger.info(f"开始多模型评估: {task_id}")
@@ -267,7 +505,7 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
             agent_factory, 
             max_concurrent_tasks=20
         )
-        task["progress"] = 90
+        user_data_manager.update_task(user_id, task_id, {"progress": 90})
         
         # 5. 处理结果
         avg_quality_failed_rate = results["avg_quality_failed_rate"]
@@ -278,7 +516,7 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
         detailed_results = results["detailed_results"]
         
         # 6. 更新任务结果
-        task.update({
+        final_update = {
             "status": "completed",
             "progress": 100,
             "total_questions": total_questions,
@@ -294,7 +532,9 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
                 "evaluation_logic": "质量不合格 = 2个以上模型答对",
                 "quality_standard": "优秀标注应该让多数AI模型难以找到正确答案"
             }
-        })
+        }
+        
+        user_data_manager.update_task(user_id, task_id, final_update)
         
         # 7. 清理临时文件
         if os.path.exists(combined_file_path):
@@ -303,156 +543,15 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str]):
         logger.info(f"三模型评估完成: {task_id}, 不合格率: {avg_quality_failed_rate:.3f}")
         
     except Exception as e:
-        task.update({
+        error_update = {
             "status": "failed",
             "error": str(e),
             "completed_at": datetime.now().isoformat()
-        })
+        }
+        
+        user_data_manager.update_task(user_id, task_id, error_update)
+            
         logger.error(f"三模型评估失败: {task_id}, 错误: {e}")
-
-# 多模型评估基准测试类
-class MultiModelBenchmark:
-    def __init__(self, name: str, file_path: str, log_path: str, models: List[str]):
-        self.name = name
-        self.file_path = file_path
-        self.log_path = log_path  
-        self.models = models
-        self.grader_llm = None  # 将在评估时初始化
-
-    async def run_multi_model_evaluation(self, max_concurrent_tasks: int = 20):
-        """运行多模型评估"""
-        # 加载数据
-        data = []
-        with open(self.file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.strip():
-                    data.append(json.loads(line))
-        
-        # 初始化评分器
-        from utils.async_llm import AsyncLLM
-        self.grader_llm = AsyncLLM("gpt-4o")
-        
-        # 评估所有问题
-        detailed_results = []
-        total_cost = 0.0
-        quality_failed_count = 0
-        
-        for i, problem in enumerate(data):
-            logger.info(f"评估问题 {i+1}/{len(data)}")
-            
-            result = await self.evaluate_single_problem(problem)
-            detailed_results.append(result)
-            total_cost += result["total_cost"]
-            
-            if result["quality_failed"]:
-                quality_failed_count += 1
-        
-        avg_quality_failed_rate = quality_failed_count / len(data) if data else 0
-        
-        return {
-            "total_questions": len(data),
-            "quality_failed_count": quality_failed_count,
-            "avg_quality_failed_rate": avg_quality_failed_rate,
-            "total_cost": total_cost,
-            "detailed_results": detailed_results
-        }
-
-    async def evaluate_single_problem(self, problem: dict):
-        """评估单个问题"""
-        question = problem["question"]
-        correct_answer = problem.get("answer", "")
-        
-        model_results = {}
-        total_cost = 0.0
-        correct_models_count = 0
-        
-        # 对每个模型进行评估
-        for model in self.models:
-            try:
-                # 创建Agent
-                agent = InteractCompAgent(
-                    name=f"Agent_{model}",
-                    llm_config=model,
-                    dataset="InteractComp", 
-                    prompt="",
-                    max_turns=5,  # 减少轮数节省成本
-                    search_engine_type="google",
-                    user_config="gpt-4o"
-                )
-                
-                # 获取模型答案
-                predicted_answer, history, cost = await agent(problem)
-                total_cost += cost
-                
-                # 评估答案正确性
-                is_correct = await self.grade_answer(question, correct_answer, predicted_answer)
-                
-                model_results[model] = {
-                    "answer": predicted_answer,
-                    "correct": is_correct,
-                    "cost": cost,
-                    "history_length": len(history)
-                }
-                
-                if is_correct:
-                    correct_models_count += 1
-                    
-                logger.info(f"模型 {model}: {'正确' if is_correct else '错误'}")
-                    
-            except Exception as e:
-                logger.error(f"模型 {model} 评估失败: {e}")
-                model_results[model] = {
-                    "answer": "评估失败",
-                    "correct": False,
-                    "cost": 0.0,
-                    "error": str(e)
-                }
-        
-        # 判断质量：2个以上模型答对就是质量不合格
-        quality_failed = correct_models_count >= 2
-        
-        return {
-            "question": question,
-            "correct_answer": correct_answer,
-            "model_results": model_results,
-            "correct_models_count": correct_models_count,
-            "quality_failed": quality_failed,
-            "total_cost": total_cost
-        }
-
-    async def grade_answer(self, question: str, correct_answer: str, predicted_answer: str) -> bool:
-        """评估答案正确性"""
-        grading_prompt = f"""你是一个公正的评分员。
-
-问题: {question}
-预测答案: {predicted_answer}
-正确答案: {correct_answer}
-
-关键评分指令:
-1. 预测答案必须与正确答案匹配
-2. 寻找确切的名称匹配或对同一实体的明确引用
-3. 考虑不同语言、翻译或替代名称作为潜在匹配
-4. 严格要求：部分匹配或模糊相似性应为'no'
-
-重要：只给出一个评分：
-- 'yes': 预测答案正确识别了与正确答案相同的实体
-- 'no': 预测答案错误、匹配了流行答案，或指向了不同的实体
-
-只回答'yes'或'no'，不要其他内容。"""
-
-        try:
-            response = await self.grader_llm(grading_prompt)
-            
-            if "yes" in response.strip().lower():
-                return True
-            elif "no" in response.strip().lower():
-                return False
-            else:
-                return False
-                
-        except Exception as e:
-            logger.error(f"评分失败: {e}")
-            return False
 
 @app.get("/config/status")
 async def get_config_status():
@@ -502,7 +601,7 @@ async def get_config_status():
             "ready": False
         }
 
-async def merge_uploaded_files(file_ids: List[str], task_id: str) -> str:
+async def merge_uploaded_files(file_ids: List[str], task_id: str, user_id: str = None) -> str:
     """合并上传的数据文件为单个JSONL文件"""
     output_dir = Path("workspace") / task_id
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -510,7 +609,24 @@ async def merge_uploaded_files(file_ids: List[str], task_id: str) -> str:
     
     with open(output_path, 'w', encoding='utf-8') as out_f:
         for file_id in file_ids:
-            file_path = uploaded_files[file_id]
+            # 从用户数据中获取文件路径
+            if user_id:
+                user_files = user_data_manager.get_user_files(user_id)
+                if file_id not in user_files:
+                    logger.warning(f"文件 {file_id} 不属于用户 {user_id}")
+                    continue
+                file_path = user_files[file_id]['file_path']
+            else:
+                # 回退到临时存储文件夹搜索
+                temp_dir = Path("temp_uploads")
+                file_path = None
+                for temp_file in temp_dir.glob(f"{file_id}_*"):
+                    file_path = str(temp_file)
+                    break
+                if not file_path:
+                    logger.error(f"找不到文件: {file_id}")
+                    continue
+            
             with open(file_path, 'r', encoding='utf-8') as in_f:
                 if file_path.endswith('.jsonl'):
                     for line in in_f:

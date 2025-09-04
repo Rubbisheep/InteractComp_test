@@ -1,4 +1,4 @@
-# requirements_minimal.txt - Core dependencies only
+# requirements.txt - Core dependencies for InteractComp Multi-User Platform
 # For InteractComp Annotation Testing Platform on Python 3.11
 
 # Web API Framework (Required)
@@ -15,6 +15,7 @@ pandas==2.1.4
 aiohttp==3.9.1
 openai==1.6.1
 httpx==0.25.2
+requests==2.31.0
 
 # Configuration & Utilities (Required)
 PyYAML==6.0.1
@@ -25,7 +26,7 @@ python-dateutil==2.8.2
 # System Utilities (Required)
 typing-extensions==4.8.0
 
-# Web API 依赖
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# Security & Authentication (New for multi-user)
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
 python-multipart==0.0.6
