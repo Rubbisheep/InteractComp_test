@@ -211,6 +211,7 @@ config/search_config.yaml
 workspace/
 logs/
 misc/
+user_data/
 
 frontend/node_modules/
 temp_uploads/
