@@ -118,8 +118,8 @@ const InteractCompMultiUserPlatform = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [systemStatus, setSystemStatus] = useState({
     running_tasks: 0,
-    max_concurrent_tasks: 5,
-    available_slots: 5
+    max_concurrent_tasks: 10,  // 默认值，会从API更新
+    available_slots: 10
   });
 
   // 分页状态
