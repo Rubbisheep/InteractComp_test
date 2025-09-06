@@ -16,13 +16,13 @@ from workflow.InteractComp import InteractCompAgent, create_multi_model_agent_fa
 SINGLE_MODEL_CONFIGS = [
     "gpt-5-mini",
     "gpt-5", 
-    "claude-4-sonnet"
+    "claude-sonnet-4-20250514"
 ]
 
 MULTI_MODEL_CONFIGS = [
     "gpt-5-mini",
     "gpt-5", 
-    "claude-4-sonnet"
+    "claude-sonnet-4-20250514"
 ]
 
 async def run_single_model_evaluation():

@@ -28,9 +28,14 @@
   - Agent与工厂方法：[workflow/InteractComp.py](workflow/InteractComp.py)
 
 ## 功能特点
+<<<<<<< HEAD
 
 ### 核心评估功能
 - 三模型固定评估：gpt-5-mini、gpt-5、claude-4-sonnet
+=======
+- 三模型固定评估：gpt-5-mini、gpt-5、claude-sonnet-4-20250514
+- Web 界面上传 JSONL/JSON 文件、一键启动评估、下载 CSV 报告
+>>>>>>> eb0ea3c (WIP: local edits before syncing with origin/main)
 - 异步评估与进度查询、总成本统计
 - 简单命令行入口（见 [run_baseline.py](run_baseline.py)）
 
@@ -178,7 +183,7 @@ models:
     api_key: "sk-proj-xxxxxxxxxx"
     temperature: 0
 
-  "claude-4-sonnet":
+  "claude-sonnet-4-20250514":
     api_type: "openai"     # 通过代理访问
     base_url: "https://one-api.example.com/v1"
     api_key: "sk-xxxxxxxxxx"

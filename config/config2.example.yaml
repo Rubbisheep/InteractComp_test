@@ -1,19 +1,19 @@
 models:
- "<model_name>": # model: "gpt-4-turbo"  # or gpt-3.5-turbo
+ "gpt-5-mini": # model: "gpt-4-turbo"  # or gpt-3.5-turbo
    api_type: "openai"  # or azure / ollama / groq etc.
-   base_url: "<your base url>" 
-   api_key: "<your api key>"
+   base_url: "https://api.chsdw.top/v1/chat/completions" 
+   api_key: "sk-0oK4GhNRQip1Fi797R4utRs2BJrz9yR6Nfcpqtv1QvJ4dnho"
    temperature: 0
- "<model_name>":  
+ "gpt-5":  
    api_type: "openai"  
-   base_url: "<your base url>"
-   api_key: "<your api key>"
+   base_url: "https://api.chsdw.top/v1/chat/completions"
+   api_key: "sk-0oK4GhNRQip1Fi797R4utRs2BJrz9yR6Nfcpqtv1QvJ4dnho"
    temperature: 0
 
 search:
   engines:
     google:
-      api_key: "<your_serper_api_key>"  # Serper.dev API Key
+      api_key: "sk-0oK4GhNRQip1Fi797R4utRs2BJrz9yR6Nfcpqtv1QvJ4dnho"  # Serper.dev API Key
   request_settings:
     timeout: 30
     max_results_per_query: 5
