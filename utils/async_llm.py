@@ -100,8 +100,7 @@ class ModelPricing:
         "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
         "gpt-5": {"input": 0.00125, "output": 0.01},
         "gpt-5-mini": {"input": 0.00025, "output": 0.002},
-        "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
-        "claude-4-sonnet": {"input": 0.003, "output": 0.015},  # backward compat
+        "claude-4-sonnet": {"input": 0.003, "output": 0.015}
     }
     
     @classmethod

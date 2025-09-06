@@ -42,10 +42,9 @@ app.add_middleware(
 EVALUATION_MODELS = [
     "gpt-5-mini",
     "gpt-5", 
-    "claude-sonnet-4-20250514"
+    "claude-4-sonnet"
 ]
 
-<<<<<<< HEAD
 # 初始化用户管理器
 user_manager = UserManager()
 user_data_manager = UserDataManager()
@@ -135,30 +134,6 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="用户不存在")
     
     return user_info
-=======
-# 模型别名映射（用于兼容不同提供商/网关的命名）
-MODEL_ALIASES = {
-    "claude-4-sonnet": [
-        "claude-sonnet-4-20250514",
-        "claude-3-5-sonnet-20241022",
-    ],
-    "claude-sonnet-4-20250514": [
-        "claude-4-sonnet",
-        "claude-3-5-sonnet-20241022",
-    ],
-}
-
-def resolve_model_key(required_name: str, configured_models: dict) -> str:
-    """根据必需模型名解析到配置中真实存在的模型键名（支持别名）。
-    若找不到别名匹配，则返回原名。
-    """
-    if required_name in configured_models:
-        return required_name
-    for alias in MODEL_ALIASES.get(required_name, []):
-        if alias in configured_models:
-            return alias
-    return required_name
->>>>>>> eb0ea3c (WIP: local edits before syncing with origin/main)
 
 # 支持的搜索引擎配置（用于Google搜索）
 def get_search_config():
@@ -461,21 +436,12 @@ async def download_csv_report(task_id: str, current_user: dict = Depends(get_cur
         writer.writerow([
             item.get("question", ""),
             item.get("correct_answer", ""),
-<<<<<<< HEAD
             item.get("model_results", {}).get("gpt-5-mini", {}).get("answer", ""),           
             item.get("model_results", {}).get("gpt-5-mini", {}).get("correct", False),       
             item.get("model_results", {}).get("gpt-5", {}).get("answer", ""),               
             item.get("model_results", {}).get("gpt-5", {}).get("correct", False),           
             item.get("model_results", {}).get("claude-4-sonnet", {}).get("answer", ""),     
             item.get("model_results", {}).get("claude-4-sonnet", {}).get("correct", False), 
-=======
-            item.get("model_results", {}).get("gpt-5-mini", {}).get("answer", ""),           # 修正
-            item.get("model_results", {}).get("gpt-5-mini", {}).get("correct", False),       # 修正
-            item.get("model_results", {}).get("gpt-5", {}).get("answer", ""),               # 修正
-            item.get("model_results", {}).get("gpt-5", {}).get("correct", False),           # 修正
-            item.get("model_results", {}).get("claude-sonnet-4-20250514", {}).get("answer", ""),     # 修正
-            item.get("model_results", {}).get("claude-sonnet-4-20250514", {}).get("correct", False), # 修正
->>>>>>> eb0ea3c (WIP: local edits before syncing with origin/main)
             item.get("correct_models_count", 0),
             item.get("quality_failed", False),
             item.get("total_cost", 0.0),
@@ -523,7 +489,6 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str], user_id:
             models=EVALUATION_MODELS  # 传入评估模型列表
         )
 
-<<<<<<< HEAD
         # 创建Agent工厂
         from workflow.InteractComp import create_multi_model_agent_factory
         agent_factory = create_multi_model_agent_factory(
@@ -532,21 +497,6 @@ async def run_multi_model_evaluation(task_id: str, file_ids: List[str], user_id:
             user_config="gpt-4o"
         )
         user_data_manager.update_task(user_id, task_id, {"progress": 40})
-=======
-        # 创建Agent工厂（支持模型别名解析）
-        def agent_factory(model_name: str):
-            resolved_key = resolve_model_key(model_name, config.get('models', {}))
-            return InteractCompAgent(
-                name=f"Agent_{model_name}",
-                llm_config=resolved_key,
-                dataset="InteractComp", 
-                prompt="",
-                max_turns=5,  # 多模型评估时减少轮数节省成本
-                search_engine_type="google",
-                user_config="gpt-4o"
-            )
-        task["progress"] = 40
->>>>>>> eb0ea3c (WIP: local edits before syncing with origin/main)
         
         # 4. 执行多模型评估
         logger.info(f"开始多模型评估: {task_id}")
@@ -616,10 +566,9 @@ async def get_config_status():
         configured_models = []
         
         for model in required_models:
-            resolved = resolve_model_key(model, models)
-            if resolved not in models:
+            if model not in models:
                 missing_models.append(f"{model} (未配置)")
-            elif not models.get(resolved, {}).get('api_key'):
+            elif not models[model].get('api_key'):
                 missing_models.append(f"{model} (缺少API Key)")
             else:
                 configured_models.append(model)
@@ -707,8 +656,7 @@ if __name__ == "__main__":
         models = config.get('models', {})
         
         for model in EVALUATION_MODELS:
-            resolved = resolve_model_key(model, models)
-            if resolved in models and models[resolved].get('api_key'):
+            if model in models and models[model].get('api_key'):
                 print(f"✅ {model} 配置完成")
             else:
                 print(f"⚠️ {model} 配置缺失")
